@@ -1,0 +1,29 @@
+import jwt from "jsonwebtoken";
+import db from "../db.js";
+import dotenv from "dotenv";
+dotenv.config();
+
+const jwtSecret = process.env.JWT_SECRET || "secret";
+
+export const protect = (req, res, next) => {
+  let token;
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) token = authHeader.split(" ")[1];
+
+  if (!token) return res.status(401).json({ message: "Not authorized, token missing" });
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret); // { id, email, iat, exp }
+
+    // fetch the latest user data from DB (so we can attach role/created_at etc)
+    db.query("SELECT id, name, email, role, created_at FROM users WHERE id = ?", [decoded.id], (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!results.length) return res.status(401).json({ message: "User not found" });
+
+      req.user = results[0];
+      next();
+    });
+  } catch (error) {
+    return res.status(401).json({ message: "Not authorized, token invalid or expired" });
+  }
+};
