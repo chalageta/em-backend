@@ -71,6 +71,23 @@ export const getContact = (req, res) => {
   });
 };
 
+export const markContactsRead = (req, res) => {
+  const { contactIds } = req.body; // expects { "contactIds": ["id1", "id2"] }
+
+  if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
+    return res.status(400).json({ message: "No contact IDs provided" });
+  }
+
+  const placeholders = contactIds.map(() => "?").join(",");
+  const query = `UPDATE contact SET is_read = 1 WHERE id IN (${placeholders})`;
+
+  db.query(query, contactIds, (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    res.json({ message: "✅ Contact messages marked as read", affectedRows: result.affectedRows });
+  });
+};
+
 // Delete contact message
 export const deleteContact = (req, res) => {
   const id = req.params.id;

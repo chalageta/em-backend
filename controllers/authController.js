@@ -8,11 +8,10 @@ dotenv.config();
 const jwtSecret = process.env.JWT_SECRET || "secret";
 const jwtExpires = process.env.JWT_EXPIRES_IN || "7d";
 
-// Generate JWT token
 const generateToken = (payload) =>
   jwt.sign(payload, jwtSecret, { expiresIn: jwtExpires });
 
-// Register user
+// -------------------- Existing functions --------------------
 export const registerUser = (req, res) => {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password)
@@ -39,7 +38,6 @@ export const registerUser = (req, res) => {
   });
 };
 
-// Login user
 export const loginUser = (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -58,19 +56,43 @@ export const loginUser = (req, res) => {
   });
 };
 
-// Logout (frontend handles JWT removal)
 export const logoutUser = (req, res) => {
   res.json({ message: "Logged out successfully" });
 };
 
-// Get profile (protected)
 export const getProfile = (req, res) => {
-  const user = req.user; // from auth middleware
+  const user = req.user;
   res.json({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     created_at: user.created_at,
+  });
+};
+// 3. Change password → logged-in user
+export const changePassword = async (req, res) => {
+  const user = req.user;
+  const { current_password, new_password, new_password_confirmation } = req.body;
+
+  if (!current_password || !new_password || !new_password_confirmation)
+    return res.status(400).json({ message: "All fields are required" });
+
+  if (new_password !== new_password_confirmation)
+    return res.status(400).json({ message: "New passwords do not match" });
+
+  db.query("SELECT password FROM users WHERE id = ?", [user.id], async (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const match = await bcrypt.compare(current_password, results[0].password);
+    if (!match) return res.status(401).json({ message: "Current password is incorrect" });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashed = await bcrypt.hash(new_password, salt);
+
+    db.query("UPDATE users SET password = ? WHERE id = ?", [hashed, user.id], (err2) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      res.status(201).json({ message: "Password changed successfully", status: "success" });
+    });
   });
 };
