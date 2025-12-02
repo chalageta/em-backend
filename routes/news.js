@@ -1,21 +1,21 @@
 import express from "express";
 import {
   addNews,
-  getNews,
   updateNews,
   deleteNews,
-  getNewsBySlug, // only import existing functions
+  getNewsBySlug,
+  getAllNews,
+  getPublicNews,
 } from "../controllers/news.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { newsUpload } from "../middleware/uploadConfig.js"; // multer config for image upload
+import { protect, admin } from "../middleware/authMiddleware.js";
+import { newsUpload } from "../middleware/uploadConfig.js"; 
 
 const router = express.Router();
 
-// Public routes
-router.get("/", getNews);
-router.get("/:slug", getNewsBySlug); // fetch by slug only
+router.get("/", getPublicNews);          
+router.get("/:slug", getNewsBySlug);      
+router.get("/admin/all", protect, admin, getAllNews); 
 
-// Protected routes (require login)
 router.post("/", protect, newsUpload.single("image"), addNews);
 router.put("/:id", protect, newsUpload.single("image"), updateNews);
 router.delete("/:id", protect, deleteNews);

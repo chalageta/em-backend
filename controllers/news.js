@@ -54,55 +54,88 @@ export const addNews = (req, res) => {
   );
 };
 
-// Get all news with pagination & search
-export const getNews = (req, res) => {
+export const getAllNews = (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || "";
 
-  const countSql = `
-    SELECT COUNT(*) AS total
-    FROM news
-    WHERE title LIKE ? OR details LIKE ? OR author LIKE ?
-  `;
+  const whereClause = `WHERE title LIKE ? OR details LIKE ? OR author LIKE ?`;
+  const params = [`%${search}%`, `%${search}%`, `%${search}%`];
 
-  db.query(
-    countSql,
-    [`%${search}%`, `%${search}%`, `%${search}%`],
-    (err, countResult) => {
-      if (err) return res.status(500).json({ success: false, message: err.message });
+  const countSql = `SELECT COUNT(*) AS total FROM news ${whereClause}`;
+  db.query(countSql, params, (err, countResult) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
 
-      const total = countResult[0].total;
+    const total = countResult[0].total;
 
-      const dataSql = `
-        SELECT * FROM news
-        WHERE title LIKE ? OR details LIKE ? OR author LIKE ?
-        ORDER BY date DESC
-        LIMIT ? OFFSET ?
-      `;
+    const dataSql = `
+      SELECT *
+      FROM news
+      ${whereClause}
+      ORDER BY date DESC
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...params, limit, offset];
 
-      db.query(
-        dataSql,
-        [`%${search}%`, `%${search}%`, `%${search}%`, limit, offset],
-        (err2, results) => {
-          if (err2) return res.status(500).json({ success: false, message: err2.message });
+    db.query(dataSql, dataParams, (err2, results) => {
+      if (err2) return res.status(500).json({ success: false, message: err2.message });
 
-          res.json({
-            success: true,
-            message: "News retrieved successfully",
-            data: results,
-            meta: {
-              total,
-              page,
-              limit,
-              totalPages: Math.ceil(total / limit),
-            },
-          });
-        }
-      );
-    }
-  );
+      res.json({
+        success: true,
+        message: "News retrieved successfully",
+        data: results,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    });
+  });
+};
+
+export const getPublicNews = (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || "";
+
+  const whereClause = `WHERE (title LIKE ? OR details LIKE ? OR author LIKE ?) AND status = 'published'`;
+  const params = [`%${search}%`, `%${search}%`, `%${search}%`];
+
+  const countSql = `SELECT COUNT(*) AS total FROM news ${whereClause}`;
+  db.query(countSql, params, (err, countResult) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+
+    const total = countResult[0].total;
+
+    const dataSql = `
+      SELECT *
+      FROM news
+      ${whereClause}
+      ORDER BY date DESC
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...params, limit, offset];
+
+    db.query(dataSql, dataParams, (err2, results) => {
+      if (err2) return res.status(500).json({ success: false, message: err2.message });
+
+      res.json({
+        success: true,
+        message: "News retrieved successfully",
+        data: results,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    });
+  });
 };
 
 // Get single news by slug

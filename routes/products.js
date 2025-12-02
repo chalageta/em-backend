@@ -3,17 +3,21 @@ import {
   addProduct, 
   updateProduct, 
   getProducts, 
-  getProductById, 
+  getProductBySlug, 
   deleteProduct 
-} from '../controllers/products.js';
-import { productUpload } from "../middleware/createUploader.js"; // make sure folder is "middlewares"
+} from "../controllers/products.js";
+import { productUpload } from "../middleware/createUploader.js";
+import { protect, admin, adminOrSalesman, optionalProtect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", productUpload.single("images"), addProduct);
-router.put("/:id", productUpload.single("images"), updateProduct);
-router.get("/", getProducts);
-router.get("/:id", getProductById);
-router.delete("/:id", deleteProduct);
+// Admin/Salesman routes
+router.post("/", protect, adminOrSalesman, productUpload.single("images"), addProduct);
+router.put("/:id", protect, adminOrSalesman, productUpload.single("images"), updateProduct);
+router.delete("/:id", protect, admin, deleteProduct);
+
+// Public routes (guests or logged-in users)
+router.get("/", optionalProtect, getProducts);
+router.get("/:slug", optionalProtect, getProductBySlug);
 
 export default router;
